@@ -1,5 +1,8 @@
 # DevOps Capstone Project
 
+![Build Status](https://github.com/Helly121/devops-capstone-project/actions/workflows/ci-build.yaml/badge.svg)
+
+
 ## Development Environment
 
 These labs are designed to be executed in the IBM Developer Skills Network Cloud IDE with OpenShift. Please use the links provided in the Coursera Capstone project to access the lab environment.
