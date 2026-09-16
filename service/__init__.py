@@ -15,6 +15,7 @@ from flask_talisman import Talisman
 app = Flask(__name__)
 app.config.from_object(config)
 CORS(app)
+talisman = Talisman(app)
 
 # Import the routes After the Flask app is created
 # pylint: disable=wrong-import-position, cyclic-import, wrong-import-order
