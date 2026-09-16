@@ -19,7 +19,7 @@ spec:
 
     spec:
       containers:
-        - image: us.icr.io/sn-labs-ethangade24/accounts:1
+        - image: IMAGE_NAME_HERE
           name: accounts
 
           env:

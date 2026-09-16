@@ -1,22 +1,29 @@
 #
 # This pipeline needs the following tasks from Tekton Catalog
+#   - cleanup
 #   - git-clone
 #   - flake8
 #   - nose
 #   - buildah
+#   - openshift-client
 #
 
 ---
 apiVersion: tekton.dev/v1beta1
 kind: Pipeline
+
 metadata:
   name: cd-pipeline
 
 spec:
+
+  # Shared workspace used by all tasks
   workspaces:
     - name: pipeline-workspace
 
+  # Pipeline parameters
   params:
+
     - name: repo-url
       type: string
 
@@ -29,38 +36,54 @@ spec:
 
   tasks:
 
+    # --------------------------------------------------
     # 1. Clean the workspace
+    # --------------------------------------------------
     - name: init
+
       workspaces:
         - name: source
           workspace: pipeline-workspace
+
       taskRef:
         name: cleanup
 
+
+    # --------------------------------------------------
     # 2. Clone the GitHub repository
+    # --------------------------------------------------
     - name: clone
+
       workspaces:
         - name: output
           workspace: pipeline-workspace
+
       taskRef:
         name: git-clone
+
       params:
         - name: url
-          value: $(params.repo-url)
+          value: "$(params.repo-url)"
 
         - name: revision
-          value: $(params.branch)
+          value: "$(params.branch)"
 
       runAfter:
         - init
 
+
+    # --------------------------------------------------
     # 3. Run Flake8
+    # --------------------------------------------------
     - name: lint
+
       workspaces:
         - name: source
           workspace: pipeline-workspace
+
       taskRef:
         name: flake8
+
       params:
         - name: image
           value: "python:3.9-slim"
@@ -75,13 +98,19 @@ spec:
       runAfter:
         - clone
 
+
+    # --------------------------------------------------
     # 4. Run Nose tests
+    # --------------------------------------------------
     - name: tests
+
       workspaces:
         - name: source
           workspace: pipeline-workspace
+
       taskRef:
         name: nose
+
       params:
         - name: database_uri
           value: "sqlite:///test.db"
@@ -92,14 +121,20 @@ spec:
       runAfter:
         - clone
 
-    # 5. Build Docker/OCI image
+
+    # --------------------------------------------------
+    # 5. Build Docker/OCI image using Buildah
+    # --------------------------------------------------
     - name: build
+
       workspaces:
         - name: source
           workspace: pipeline-workspace
+
       taskRef:
         name: buildah
         kind: ClusterTask
+
       params:
         - name: IMAGE
           value: "$(params.build-image)"
@@ -107,3 +142,38 @@ spec:
       runAfter:
         - tests
         - lint
+
+
+    # --------------------------------------------------
+    # 6. Deploy application to OpenShift
+    # --------------------------------------------------
+    - name: deploy
+
+      workspaces:
+        - name: manifest-dir
+          workspace: pipeline-workspace
+
+      taskRef:
+        name: openshift-client
+        kind: ClusterTask
+
+      params:
+        - name: SCRIPT
+          value: |
+            echo "Updating deployment manifest..."
+
+            sed -i "s|IMAGE_NAME_HERE|$(params.build-image)|g" deploy/deployment.yaml
+
+            echo "Deployment manifest:"
+            cat deploy/deployment.yaml
+
+            echo "Deploying application to OpenShift..."
+
+            oc apply -f deploy/
+
+            echo "Checking deployed pods..."
+
+            oc get pods -l app=accounts
+
+      runAfter:
+        - build
