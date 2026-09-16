@@ -3,6 +3,7 @@
 #   - git-clone
 #   - flake8
 #   - nose
+#   - buildah
 #
 
 ---
@@ -22,6 +23,9 @@ spec:
     - name: branch
       type: string
       default: main
+
+    - name: build-image
+      type: string
 
   tasks:
 
@@ -55,10 +59,8 @@ spec:
       workspaces:
         - name: source
           workspace: pipeline-workspace
-
       taskRef:
         name: flake8
-
       params:
         - name: image
           value: "python:3.9-slim"
@@ -78,10 +80,8 @@ spec:
       workspaces:
         - name: source
           workspace: pipeline-workspace
-
       taskRef:
         name: nose
-
       params:
         - name: database_uri
           value: "sqlite:///test.db"
@@ -91,3 +91,19 @@ spec:
 
       runAfter:
         - clone
+
+    # 5. Build Docker/OCI image
+    - name: build
+      workspaces:
+        - name: source
+          workspace: pipeline-workspace
+      taskRef:
+        name: buildah
+        kind: ClusterTask
+      params:
+        - name: IMAGE
+          value: "$(params.build-image)"
+
+      runAfter:
+        - tests
+        - lint
